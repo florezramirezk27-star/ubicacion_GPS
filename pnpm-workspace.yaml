@@ -1,0 +1,61 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm 11 bloquea por defecto los scripts de post-instalacion (proteccion
+# contra cadena de suministro). Aqui se autorizan solo los paquetes que
+# realmente necesitan compilar binarios nativos o descargar artefactos.
+allowBuilds:
+  "@parcel/watcher": true
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - "@prisma/adapter-pg@7.10.1"
+  - "@prisma/client-runtime-utils@7.10.1"
+  - "@prisma/client@7.10.1"
+  - "@prisma/config@7.10.1"
+  - "@prisma/debug@7.10.1"
+  - "@prisma/driver-adapter-utils@7.10.1"
+  - "@prisma/engines@7.10.1"
+  - "@prisma/fetch-engine@7.10.1"
+  - "@prisma/get-platform@7.10.1"
+  - "prisma@7.10.1"
+  - "ts-jest@29.4.15"
+  - '@next/env@16.4.2'
+  - '@next/swc-darwin-arm64@16.4.2'
+  - '@next/swc-darwin-x64@16.4.2'
+  - '@next/swc-linux-arm64-gnu@16.4.2'
+  - '@next/swc-linux-arm64-musl@16.4.2'
+  - '@next/swc-linux-x64-gnu@16.4.2'
+  - '@next/swc-linux-x64-musl@16.4.2'
+  - '@next/swc-win32-arm64-msvc@16.4.2'
+  - '@next/swc-win32-x64-msvc@16.4.2'
+  - '@tanstack/query-core@5.104.3'
+  - '@tanstack/react-query@5.104.3'
+  - next@16.4.2
+  - '@expo/cli@58.1.9'
+  - '@expo/metro-config@58.0.14'
+  - '@expo/package-manager@1.14.2'
+  - '@expo/prebuild-config@58.0.14'
+  - '@expo/router-server@58.0.14'
+  - '@react-native/asset-utils@0.88.0'
+  - '@react-native/babel-plugin-codegen@0.88.0'
+  - '@react-native/codegen@0.88.0'
+  - '@react-native/community-cli-plugin@0.88.0'
+  - '@react-native/debugger-frontend@0.88.0'
+  - '@react-native/debugger-shell@0.88.0'
+  - '@react-native/dev-middleware@0.88.0'
+  - '@react-native/gradle-plugin@0.88.0'
+  - '@react-native/js-polyfills@0.88.0'
+  - '@react-native/normalize-colors@0.88.0'
+  - '@react-native/virtualized-lists@0.88.0'
+  - babel-preset-expo@58.0.15
+  - expo-asset@58.0.16
+  - expo-modules-core@58.0.19
+  - expo-modules-jsi@58.0.14
+  - expo@58.0.11
+  - react-native@0.88.0
+  - expo-task-manager@58.0.12

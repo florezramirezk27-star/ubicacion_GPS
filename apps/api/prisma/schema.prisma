@@ -1,0 +1,273 @@
+// =============================================================================
+// Esquema de datos - geolocalizador-movil
+// Prisma ORM v7 (generador "prisma-client", cliente sin motor Rust).
+//
+// Nota sobre PostGIS:
+//   La columna `geog` es de tipo `geography(Point,4326)` y se declara como
+//   `Unsupported`, porque Prisma no gestiona tipos espaciales de forma nativa.
+//   Se mantiene sincronizada con (latitude, longitude) mediante un trigger
+//   SQL definido en la migracion inicial, y permite consultas geograficas
+//   eficientes (por ejemplo ST_DWithin) mediante $queryRaw.
+// =============================================================================
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------- Enumeraciones -------------------------------
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+}
+
+enum LocationShareStatus {
+  ACTIVE
+  STOPPED
+  REVOKED
+  EXPIRED
+}
+
+/// Rol del usuario en la plataforma. Ver `docs/privacidad.md`.
+enum UserRole {
+  USER
+  SUPERADMIN
+}
+
+/// Sensor que solicita un administrador en una sesion de acceso remoto.
+enum RemoteSensor {
+  CAMERA
+  MICROPHONE
+  CAMERA_AND_MICROPHONE
+}
+
+/// Estado de una solicitud de acceso remoto.
+/// PENDING solo puede resolverse una vez: aceptar crea la sesion de medios.
+enum RemoteRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+/// Estado de una sesion de medios (camara/microfono) abierta con consentimiento.
+enum MediaSessionStatus {
+  ACTIVE
+  ENDED
+}
+
+// ---------------------------------- Modelos ----------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  devices   Device[]
+  sessions  Session[]
+  auditLogs AuditLog[] @relation("AuditActor")
+  /// Solicitudes de camara/micrófono que ha hecho este administrador.
+  remoteRequests RemoteAccessRequest[] @relation("RemoteRequestActor")
+
+  @@map("users")
+}
+
+/// Sesion de refresco. Se guarda el HASH del token, nunca el token en claro.
+model Session {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  refreshHash String    @unique @map("refresh_hash")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Device {
+  id             String         @id @default(cuid())
+  userId         String         @map("user_id")
+  platform       DevicePlatform
+  deviceName     String         @map("device_name")
+  lastSeenAt     DateTime?      @map("last_seen_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  /// Metadatos que la app reporta de forma oportunista (pueden quedar en null).
+  appVersion       String? @map("app_version")
+  osVersion        String? @map("os_version")
+  batteryLevel     Int?    @map("battery_level")
+  permissionStatus String? @map("permission_status")
+  metadataUpdatedAt DateTime? @map("metadata_updated_at") @db.Timestamptz(6)
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shares    LocationShare[]
+  locations Location[]
+
+  /// Solicitudes de camara/micrófono recibidas del panel de administracion.
+  remoteRequests RemoteAccessRequest[]
+  /// Sesiones de medios abiertas con consentimiento del usuario.
+  mediaSessions  MediaSession[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+/// Sesion de ubicacion compartida autorizada por el usuario del dispositivo.
+model LocationShare {
+  id         String              @id @default(cuid())
+  deviceId   String              @map("device_id")
+  tokenHash  String              @unique @map("token_hash")
+  status     LocationShareStatus @default(ACTIVE)
+  startedAt  DateTime            @default(now()) @map("started_at") @db.Timestamptz(6)
+  expiresAt  DateTime            @map("expires_at") @db.Timestamptz(6)
+  stoppedAt  DateTime?           @map("stopped_at") @db.Timestamptz(6)
+  revokedAt  DateTime?           @map("revoked_at") @db.Timestamptz(6)
+  /// Motivo indicado por el usuario al detener/revocar (dato sensible).
+  stopReason String?             @map("stop_reason")
+
+  device    Device     @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  locations Location[]
+
+  @@index([deviceId])
+  @@index([status])
+  @@map("location_shares")
+}
+
+model Location {
+  id             String   @id @default(cuid())
+  deviceId       String   @map("device_id")
+  shareId        String?  @map("share_id")
+  latitude       Float
+  longitude      Float
+  accuracyMeters Float    @map("accuracy_meters")
+  altitudeMeters Float?   @map("altitude_meters")
+  speedMps       Float?   @map("speed_mps")
+  headingDegrees Float?   @map("heading_degrees")
+  recordedAt     DateTime @map("recorded_at") @db.Timestamptz(6)
+  receivedAt     DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  /// Columna espacial PostGIS, gestionada por trigger. No accesible via Prisma Client.
+  geog Unsupported("geography(Point, 4326)")?
+
+  device Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  share  LocationShare? @relation(fields: [shareId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, recordedAt])
+  @@index([shareId])
+  @@map("locations")
+}
+
+/// Registro de auditoria de acciones sensibles. `metadata` se guarda cifrado.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?  @map("actor_id")
+  action    String
+  /// JSON cifrado con AES-256-GCM (ver CryptoService).
+  metadata  String?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Cache de geocodificacion inversa.
+///
+/// Evita consultar repetidamente al proveedor externo (coste y limites de uso):
+/// las coordenadas se redondean (ver GEOCODE_CACHE_DECIMALS) y se guardan aqui.
+/// `found = false` registra un "sin resultado" para no repetir la consulta.
+model GeocodeCache {
+  id               String   @id @default(cuid())
+  /// Clave estable: `${provider}:${latRedondeada}:${lonRedondeada}`.
+  cacheKey         String   @unique @map("cache_key")
+  provider         String
+  latitude         Float
+  longitude        Float
+  found            Boolean  @default(true)
+  formattedAddress String?  @map("formatted_address")
+  label            String?
+  street           String?
+  number           String?
+  neighborhood     String?
+  city             String?
+  region           String?
+  country          String?
+  postalCode       String?  @map("postal_code")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([provider])
+  @@map("geocode_cache")
+}
+
+// ------------------------- Acceso remoto a camara/micrófono -------------------------
+
+/// Solicitud de acceso a camara o microfono hecha por un SUPERADMIN.
+///
+/// El dispositivo **no captura nada** hasta que el usuario acepta de forma
+/// explicita en el movil. La solicitud caduca sola (`expiresAt`), de modo que
+/// un "sin respuesta" no queda colgado ni convierte el silencio en
+/// consentimiento implicito. Ver `docs/acceso-remoto.md`.
+model RemoteAccessRequest {
+  id            String              @id @default(cuid())
+  deviceId      String              @map("device_id")
+  requestedById String              @map("requested_by")
+  sensor        RemoteSensor
+  /// Motivo indicado por el administrador (se muestra al usuario).
+  reason        String?             @db.VarChar(280)
+  status        RemoteRequestStatus @default(PENDING)
+  expiresAt     DateTime            @map("expires_at") @db.Timestamptz(6)
+  respondedAt   DateTime?           @map("responded_at") @db.Timestamptz(6)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  device      Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  requestedBy User           @relation("RemoteRequestActor", fields: [requestedById], references: [id], onDelete: Cascade)
+  /// Como maximo una sesion por solicitud (relacion 1-1).
+  session     MediaSession?
+
+  @@index([deviceId, status])
+  @@index([status, expiresAt])
+  @@map("remote_access_requests")
+}
+
+/// Sesion de medios abierta tras el consentimiento visible del usuario.
+///
+/// `status` solo cambia a ENDED; al cerrar se guarda quien termino y por que,
+/// lo que alimenta la auditoria del panel.
+model MediaSession {
+  id          String             @id @default(cuid())
+  requestId   String             @unique @map("request_id")
+  deviceId    String             @map("device_id")
+  sensor      RemoteSensor
+  status      MediaSessionStatus @default(ACTIVE)
+  startedAt   DateTime           @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt     DateTime?          @map("ended_at") @db.Timestamptz(6)
+  /// Id del usuario que cerro la sesion, o `device` / `system`.
+  endedBy     String?            @map("ended_by")
+  endedReason String?            @map("ended_reason") @db.VarChar(160)
+
+  request RemoteAccessRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  device  Device              @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, status])
+  @@map("media_sessions")
+}

@@ -1,0 +1,36 @@
+{
+  "name": "geolocalizador-movil",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma de geolocalizacion movil autorizada (monorepositorio)",
+  "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" build && pnpm -r --filter \"./apps/**\" build",
+    "dev:api": "pnpm --filter @geo/api dev",
+    "dev:web": "pnpm --filter @geo/web dev",
+    "dev:mobile": "pnpm --filter @geo/mobile start",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "prisma:generate": "pnpm --filter @geo/api prisma:generate",
+    "prisma:migrate": "pnpm --filter @geo/api prisma:migrate",
+    "prisma:studio": "pnpm --filter @geo/api prisma:studio",
+    "lint": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "typecheck": "pnpm -r typecheck",
+    "test:unit": "node --experimental-vm-modules ./apps/api/node_modules/jest/bin/jest.js --config apps/api/jest.config.js --runInBand",
+    "test:api": "node scripts/smoke-api.mjs",
+    "test:live": "node scripts/check-live.mjs",
+    "test:admin": "node scripts/check-admin.mjs",
+    "measure:latency": "node scripts/measure-latency.mjs",
+    "simulate": "node scripts/simulate-mobile.mjs",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "socket.io-client": "^4.8.4",
+    "typescript": "^5.9.3"
+  }
+}

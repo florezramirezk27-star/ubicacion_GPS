@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Geolocalizador Movil",
+    "slug": "geolocalizador-movil",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "geolocalizador",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "co.edu.geolocalizador.movil",
+      "infoPlist": {
+        "NSCameraUsageDescription": "La camara solo se abre cuando aceptas una solicitud de acceso remoto del administrador. Mientras esta activa veras un aviso fijo con el boton para cortar.",
+        "NSMicrophoneUsageDescription": "El microfono solo se activa cuando aceptas una solicitud de acceso remoto del administrador. Puedes cortar la sesion en cualquier momento."
+      }
+    },
+    "android": {
+      "package": "co.edu.geolocalizador.movil",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "plugins": [
+      "./plugins/withCleartextTraffic",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Geolocalizador usa tu ubicacion para compartirla con tu panel autorizado mientras el seguimiento esta activo.",
+          "locationAlwaysAndWhenInUsePermission": "Geolocalizador comparte tu ubicacion con tu panel autorizado aunque la pantalla este bloqueada o uses otras aplicaciones. El seguimiento es visible y puedes detenerlo.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://192.168.1.7:3001"
+    }
+  }
+}

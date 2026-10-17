@@ -1,0 +1,15 @@
+# Dependencias y artefactos de compilacion
+node_modules
+dist
+coverage
+.expo
+*.tsbuildinfo
+
+# Cliente de Prisma generado automaticamente (no se edita a mano)
+apps/api/src/generated
+
+# Artefactos de exportacion de Expo
+apps/mobile/dist
+
+# Lockfile (lo gestiona pnpm)
+pnpm-lock.yaml

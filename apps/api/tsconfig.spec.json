@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Solo para comprobacion de tipos de las pruebas: no emite nada y no
+    // interfiere con `nest build` (que usa tsconfig.json y excluye los .spec.ts).
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/generated"]
+}

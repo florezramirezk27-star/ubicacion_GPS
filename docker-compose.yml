@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: geo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-geo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-geo_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-geolocalizador}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - geo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-geo} -d ${POSTGRES_DB:-geolocalizador}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  geo_pgdata:
+    name: geo_pgdata
