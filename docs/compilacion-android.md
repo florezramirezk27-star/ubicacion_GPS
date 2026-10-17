@@ -48,13 +48,42 @@ La app resuelve la URL de la API con esta prioridad
 3. `extra.apiUrl` de `app.json`
 4. `http://localhost:3001`
 
-Para una demostracion en red local, `app.json` trae
-`extra.apiUrl = "http://192.168.1.12:3001"` (la IP del PC que sirve la API).
-Cambiala por la de tu equipo, o deja que el usuario la edite en la pantalla de
-inicio de sesion (**Cambiar direccion del servidor**), que la guarda en
-`expo-secure-store`.
+Por defecto `app.json` trae
+`extra.apiUrl = "https://geolocalizador-api.onrender.com"` (la API publica en
+Render). Para la demostracion en red local se puede cambiar por la IP del PC que
+sirve la API, o dejar que el usuario la edite en la pantalla de inicio de sesion
+(**Cambiar direccion del servidor**), que la guarda en `expo-secure-store`.
 
 > `localhost` **no** sirve mirando desde el telefono: apunta al propio telefono.
+
+### 3. Minificado R8 y `react-native-webrtc` (obligatorio con HTTPS/R8)
+
+El APK release se minifica con R8. Con R8 en *full mode* la tarea
+`minifyReleaseWithR8` falla porque `react-native-webrtc` referencia clases
+nativas opcionales que no existen en todas las arquitecturas:
+
+```
+ERROR: R8: Missing class org.webrtc.Dav1dDecoder$Natives
+```
+
+La solucion es anadir `-dontwarn org.webrtc.**` a las reglas ProGuard. Para que
+sobreviva a `expo prebuild --clean` (el `proguard-rules.pro` es un archivo
+generado), el repositorio incluye el config plugin
+[`apps/mobile/plugins/withWebrtcProguardRules.js`](../apps/mobile/plugins/withWebrtcProguardRules.js),
+registrado en `app.json`:
+
+```json
+"plugins": [
+  "./plugins/withCleartextTraffic",
+  "./plugins/withWebrtcProguardRules",
+  ["expo-location", { ... }]
+]
+```
+
+Si el plugin no se ha aplicado todavia (proyecto `android/` generado antes de
+anadirlo), basta con escribir la regla a mano al final de
+`android/app/proguard-rules.pro` y recompilar: no hace falta rehacer el proyecto
+nativo.
 
 ## Compilar
 

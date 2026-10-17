@@ -25,6 +25,7 @@
     },
     "plugins": [
       "./plugins/withCleartextTraffic",
+      "./plugins/withWebrtcProguardRules",
       [
         "expo-location",
         {
