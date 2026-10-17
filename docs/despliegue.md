@@ -36,16 +36,26 @@ automaticos en `*.onrender.com`, de modo que se cumple el requisito de HTTPS de
    habilita aqui, la primera migracion puede fallar con
    `permission denied to create extension`.
 3. Copia la **cadena de conexion**. En **Connect** usa el **Session Pooler**
-   (IPv4, puerto `5432`). Evita la "Direct connection" (hoy es solo IPv6 y puede
-   no ser alcanzable desde Render) y el "Transaction Pooler" (`6543`), que no
-   admite migraciones con Prisma.
+   (IPv4, puerto `5432`). Evita la "Direct connection" y el "Transaction Pooler"
+   (`6543`), que no admite migraciones con Prisma.
 
 ```
-postgresql://postgres.<ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+postgresql://postgres.<ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:5432/postgres?uselibpqcompat=true&sslmode=require
 ```
 
-`?sslmode=require` es obligatorio (Supabase exige TLS). Si un dia la validacion
-del certificado diera problemas, se puede probar `?sslmode=no-verify`.
+   - **¿Por que el Session Pooler y no la conexion directa?** Supabase solo expone
+     la conexion directa por **IPv6** (`db.<ref>.supabase.co`, registro `AAAA`).
+     Ni tu equipo ni Render suelen tener IPv6, asi que la conexion directa falla
+     con `P1001: Can't reach database server`. El pooler (mismo usuario pero
+     `postgres.<ref>`) escucha en **IPv4**.
+   - **¿Por que `uselibpqcompat=true`?** Supabase presenta una cadena de
+     certificado que Node no reconoce; con `pg` (que es lo que usa la API en
+     tiempo de ejecucion a traves de `@prisma/adapter-pg`), `sslmode=require` se
+     interpreta hoy como `verify-full` y falla con
+     `self-signed certificate in certificate chain`. `uselibpqcompat=true` le da
+     a `sslmode` la semantica clasica de libpq (cifra sin verificar la cadena) y
+     **funciona tanto en runtime como en `prisma migrate`**. Alternativa
+     equivalente: `?sslmode=no-verify`.
 
 > Elige la **region de Supabase mas cercana** a la de Render (por defecto el
 > Blueprint usa `ohio`, EE. UU. este) para reducir latencia y evitar saltos entre
@@ -58,7 +68,7 @@ los triggers y los indices GIST. Se ejecutan **desde tu equipo** apuntando a
 Supabase:
 
 ```powershell
-$env:DATABASE_URL="postgresql://...supabase...:5432/postgres?sslmode=require"
+$env:DATABASE_URL="postgresql://postgres.<ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:5432/postgres?uselibpqcompat=true&sslmode=require"
 pnpm --filter @geo/api exec prisma migrate deploy
 pnpm --filter @geo/api prisma:generate
 ```

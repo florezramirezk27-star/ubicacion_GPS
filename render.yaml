@@ -41,7 +41,8 @@ services:
       - key: API_HOST
         value: 0.0.0.0
       # No se define API_PORT: la API usa `PORT`, que Render inyecta.
-      # Base de datos (Supabase). Cadena del *Session Pooler* + sslmode=require.
+      # Base de datos (Supabase). Cadena del *Session Pooler* (IPv4) con
+      # `uselibpqcompat=true&sslmode=require` (ver docs/despliegue.md, seccion 3).
       - key: DATABASE_URL
         sync: false
       # Secretos: se generan con `node -e "..."` (ver docs/despliegue.md).
