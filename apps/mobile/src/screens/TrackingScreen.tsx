@@ -84,6 +84,8 @@ export function TrackingScreen({
   const [share, setShare] = useState<StoredShare | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Accion que se esta esperando, para mostrar un aviso concreto y no uno generico. */
+  const [intent, setIntent] = useState<"start" | "stop" | null>(null);
 
   // --- Control del arranque automatico (ver el efecto mas abajo) ---
   /** Ya se sabe si habia una sesion de comparticion guardada para este equipo. */
@@ -139,6 +141,7 @@ export function TrackingScreen({
   const startSharing = useCallback(async () => {
     setError(null);
     setBusy(true);
+    setIntent("start");
     try {
       let current = share;
 
@@ -180,6 +183,7 @@ export function TrackingScreen({
       }
     } finally {
       setBusy(false);
+      setIntent(null);
     }
   }, [
     share,
@@ -196,6 +200,7 @@ export function TrackingScreen({
     // Parada explicita: el arranque automatico la respeta y no reanuda solo.
     stopPressedRef.current = true;
     setBusy(true);
+    setIntent("stop");
     setError(null);
     await stop();
 
@@ -213,6 +218,7 @@ export function TrackingScreen({
     }
 
     setBusy(false);
+    setIntent(null);
   }, [stop, share, session, onSessionRefreshed]);
 
   /**
@@ -296,6 +302,20 @@ export function TrackingScreen({
       </View>
 
       {error ? <Alert message={error} tone="error" /> : null}
+
+      {/* El arranque automatico tarda de verdad: ademas de pedir los permisos,
+          abrir la sesion en la API puede esperar hasta ~60 s si Render duerme los
+          servicios gratuitos tras 15 min sin actividad. Sin este aviso, al usuario
+          le pareceria que no pasa nada y lo tomaria por un fallo. */}
+      {busy && intent === "start" && state.status !== "starting" ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.accent} />
+          <Text style={styles.muted}>
+            Preparando la comparticion: pidiendo permisos y abriendo la
+            sesion...
+          </Text>
+        </View>
+      ) : null}
 
       {/* ---------------------------- Estado ---------------------------- */}
       <Card
