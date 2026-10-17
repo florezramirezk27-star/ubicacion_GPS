@@ -26,6 +26,7 @@
     "plugins": [
       "./plugins/withCleartextTraffic",
       "./plugins/withWebrtcProguardRules",
+      "./plugins/withReleaseBuildSettings",
       [
         "expo-location",
         {

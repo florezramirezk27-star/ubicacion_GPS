@@ -56,34 +56,53 @@ sirve la API, o dejar que el usuario la edite en la pantalla de inicio de sesion
 
 > `localhost` **no** sirve mirando desde el telefono: apunta al propio telefono.
 
-### 3. Minificado R8 y `react-native-webrtc` (obligatorio con HTTPS/R8)
+### 3. Minificado R8: por que esta DESACTIVADO en release
 
-El APK release se minifica con R8. Con R8 en *full mode* la tarea
-`minifyReleaseWithR8` falla porque `react-native-webrtc` referencia clases
-nativas opcionales que no existen en todas las arquitecturas:
+El APK release se compila **sin minificado** (`android.enableMinifyInReleaseBuilds=false`).
+No es una preferencia estetica: con R8 activado aparecen dos problemas en cadena.
+
+**a) El build ni siquiera termina.** `minifyReleaseWithR8` falla porque
+`react-native-webrtc` referencia clases nativas opcionales que no existen en
+todas las arquitecturas:
 
 ```
 ERROR: R8: Missing class org.webrtc.Dav1dDecoder$Natives
 ```
 
-La solucion es anadir `-dontwarn org.webrtc.**` a las reglas ProGuard. Para que
-sobreviva a `expo prebuild --clean` (el `proguard-rules.pro` es un archivo
-generado), el repositorio incluye el config plugin
-[`apps/mobile/plugins/withWebrtcProguardRules.js`](../apps/mobile/plugins/withWebrtcProguardRules.js),
-registrado en `app.json`:
+Se silencia con `-dontwarn org.webrtc.**`, que aplica el config plugin
+[`withWebrtcProguardRules.js`](../apps/mobile/plugins/withWebrtcProguardRules.js).
+
+**b) Si se silencia, el APK compila pero la app aborta al arrancar.** Con R8 en
+*full mode* el ofuscado renombra o elimina clases que el codigo nativo localiza
+por reflexion y JNI. El resultado es un crash nativo inmediato, **solo en release**
+(nunca en debug), y el log solo muestra el aborto, sin traza Java:
+
+```
+JNI DETECTED ERROR IN APPLICATION: java_class == null
+  at art::JNI::GetStaticMethodID(...)
+Fatal signal 6 (SIGABRT), code -6 ... name: pool-1-thread-1
+```
+
+Mantener el minificado obligaria a anadir a mano las reglas `-keep` de cada
+libreria nativa (React Native, Expo, react-native-webrtc, ...), algo fragil y que
+habria que revisar en cada actualizacion. Se desactiva con el config plugin
+[`withReleaseBuildSettings.js`](../apps/mobile/plugins/withReleaseBuildSettings.js).
+
+Trade-off aceptado: el APK ocupa mas (41 MB solo `arm64-v8a`) y no se ofusca.
 
 ```json
 "plugins": [
   "./plugins/withCleartextTraffic",
   "./plugins/withWebrtcProguardRules",
+  "./plugins/withReleaseBuildSettings",
   ["expo-location", { ... }]
 ]
 ```
 
-Si el plugin no se ha aplicado todavia (proyecto `android/` generado antes de
-anadirlo), basta con escribir la regla a mano al final de
-`android/app/proguard-rules.pro` y recompilar: no hace falta rehacer el proyecto
-nativo.
+Si los plugins no se han aplicado todavia (proyecto `android/` generado antes de
+anadirlos), basta con editar a mano `android/gradle.properties`
+(`android.enableMinifyInReleaseBuilds=false`) y recompilar: no hace falta rehacer
+el proyecto nativo.
 
 ## Compilar
 
