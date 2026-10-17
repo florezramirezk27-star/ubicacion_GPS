@@ -11,6 +11,11 @@ const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
 
+  /**
+   * Puerto inyectado por la plataforma de despliegue (Render define `PORT`).
+   * Tiene prioridad sobre API_PORT; en local no existe y se usa API_PORT.
+   */
+  PORT: z.coerce.number().int().positive().optional(),
   API_PORT: z.coerce.number().int().positive().default(3001),
   API_HOST: z.string().min(1).default("0.0.0.0"),
 

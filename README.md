@@ -242,6 +242,7 @@ Si la llegada en vivo se cae, el panel lo avisa y sigue refrescando por consulta
 | [`docs/investigacion.md`](docs/investigacion.md)             | Comparacion de los tres metodos de localizacion |
 | [`docs/pruebas.md`](docs/pruebas.md)                         | Estrategia de pruebas y como ejecutarlas        |
 | [`docs/compilacion-android.md`](docs/compilacion-android.md) | Compilar e instalar el APK release (Windows)    |
+| [`docs/despliegue.md`](docs/despliegue.md)                   | Publicar en Render y Supabase (`render.yaml`)   |
 
 ## Estado
 
@@ -265,5 +266,6 @@ Si la llegada en vivo se cae, el panel lo avisa y sigue refrescando por consulta
 - [x] Pruebas: unitarias del backend, de humo de la API, del canal en vivo y del panel de administracion
 - [x] APK release compilado, instalado y verificado en un telefono Android real
       (login y envio de coordenadas en vivo por WebSocket)
-- [ ] Despliegue con HTTPS
+- [ ] Despliegue con HTTPS (guia y `render.yaml` listos; ver
+      [`docs/despliegue.md`](docs/despliegue.md))
 - [ ] Informe academico final

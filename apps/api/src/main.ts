@@ -25,7 +25,10 @@ async function bootstrap(): Promise<void> {
   // Permite a Prisma cerrar la conexion al apagar el proceso.
   app.enableShutdownHooks();
 
-  const port = config.get<number>("API_PORT") ?? 3001;
+  // Prioridad del puerto: `PORT` (lo inyecta la plataforma, p. ej. Render) y,
+  // si no existe, `API_PORT` (desarrollo local).
+  const port =
+    config.get<number>("PORT") ?? config.get<number>("API_PORT") ?? 3001;
   const host = config.get<string>("API_HOST") ?? "0.0.0.0";
 
   await app.listen(port, host);

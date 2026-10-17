@@ -1,0 +1,95 @@
+# Blueprint de Render para el monorepositorio de geolocalizacion.
+#
+# Crea dos Web Services sobre una base PostgreSQL con PostGIS alojada en
+# Supabase:
+#
+#   - geolocalizador-api : la API NestJS (HTTP + WebSocket) y las migraciones.
+#   - geolocalizador-web : el panel Next.js.
+#
+# La app movil NO se despliega aqui: se compila como APK (ver docs/despliegue.md).
+#
+# Las variables marcadas con `sync: false` NO se guardan en el repositorio: hay
+# que introducirlas una vez en el panel de Render (son secretos). La guia
+# completa, con como obtener cada valor, esta en docs/despliegue.md.
+
+services:
+  # ------------------------------- API (NestJS) -------------------------------
+  - type: web
+    name: geolocalizador-api
+    runtime: node
+    plan: free
+    region: ohio
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @geo/shared build &&
+      pnpm --filter @geo/api build
+    # `prisma:deploy` aplica las migraciones pendientes antes de arrancar.
+    startCommand: >-
+      pnpm --filter @geo/api prisma:deploy &&
+      pnpm --filter @geo/api start:prod
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
+        value: "0"
+      - key: NODE_ENV
+        value: production
+      - key: API_HOST
+        value: 0.0.0.0
+      # No se define API_PORT: la API usa `PORT`, que Render inyecta.
+      # Base de datos (Supabase). Cadena del *Session Pooler* + sslmode=require.
+      - key: DATABASE_URL
+        sync: false
+      # Secretos: se generan con `node -e "..."` (ver docs/despliegue.md).
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      # 64 caracteres hexadecimales (32 bytes). NO debe cambiar tras el primer
+      # arranque: cifra los metadatos de auditoria.
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+      # URL exacta del panel web, p. ej. https://geolocalizador-web.onrender.com
+      - key: CORS_ORIGINS
+        sync: false
+      # Correo real que sera Superadministrador (se aplica al iniciar sesion).
+      - key: SUPERADMIN_EMAILS
+        sync: false
+      - key: GEOCODING_PROVIDER
+        value: nominatim
+      - key: GEOCODING_LANGUAGE
+        value: es
+      - key: GEOCODING_USER_AGENT
+        value: geolocalizador-movil/1.0 (proyecto academico)
+
+  # ------------------------------ Panel (Next.js) -----------------------------
+  - type: web
+    name: geolocalizador-web
+    runtime: node
+    plan: free
+    region: ohio
+    branch: main
+    healthCheckPath: /
+    autoDeploy: true
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @geo/shared build &&
+      pnpm --filter @geo/web build
+    # Next.js respeta la variable `PORT` que inyecta Render (cae a 3000 en local).
+    startCommand: pnpm --filter @geo/web start
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
+        value: "0"
+      # IMPORTANTE: se incrusta en el bundle durante el BUILD. Si cambia, hay
+      # que redesplegar este servicio (no basta con reiniciarlo).
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_MAP_TILE_URL
+        value: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
