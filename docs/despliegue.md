@@ -157,6 +157,21 @@ Alternativas equivalentes: fijar la variable de entorno
 `COREPACK_INTEGRITY_KEYS=0` (desactiva la verificacion de firma de Corepack) o
 fijar `NODE_VERSION` a una version cuyo Corepack tenga claves vigentes.
 
+### 5.3 Version de Node (pnpm 11 exige >= 22.13)
+
+`pnpm@11.5.0` requiere **Node >= 22.13**. Si el log muestra:
+
+```
+ERROR: This version of pnpm requires at least Node.js v22.13
+The current version of Node.js is v22.11.0
+```
+
+basta con usar una version de Node mas reciente. El `render.yaml` fija
+`NODE_VERSION=24.21.0` (la version por defecto actual de Render) en ambos
+servicios; el `engines.node` del `package.json` lo refleja
+(`>=22.13.0 <25.0.0`). Si cambias esta variable en el panel, hazlo en **los dos**
+servicios.
+
 ## 6. Paso 4: conectar el panel con la API y crear el administrador
 
 Hay una dependencia circular (la API necesita la URL del panel en CORS, y el
