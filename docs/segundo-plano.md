@@ -186,9 +186,10 @@ volver a compilar el APK.
 
 En el telefono, con el APK release instalado y la API en marcha en el PC:
 
-1. Inicia sesion, elige el dispositivo y pulsa **Iniciar comparticion**.
+1. Inicia sesion y elige el dispositivo: los permisos se piden solos.
 2. Concede la ubicacion precisa y, cuando se pida, **"Permitir todo el tiempo"**.
-3. En Android veras la **notificacion permanente**; en iOS, el **indicador azul**.
+3. Al concederlos, la comparticion arranca sola: en Android veras la
+   **notificacion permanente**; en iOS, el **indicador azul**.
 4. Bloquea la pantalla o cambia de aplicacion durante un minuto.
 5. Comprueba que siguen llegando lecturas:
    - en la app: "Lecturas aceptadas" y "Ultimo intento de envio" avanzan;

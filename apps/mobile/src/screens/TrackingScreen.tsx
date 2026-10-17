@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -85,6 +85,16 @@ export function TrackingScreen({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // --- Control del arranque automatico (ver el efecto mas abajo) ---
+  /** Ya se sabe si habia una sesion de comparticion guardada para este equipo. */
+  const [shareLoaded, setShareLoaded] = useState(false);
+  /** El arranque automatico ya se disparo en esta visita a la pantalla. */
+  const autoStartedRef = useRef(false);
+  /** Los dialogos de permiso ya se lanzaron en esta visita. */
+  const autoRequestedRef = useRef(false);
+  /** El usuario pulso "Detener comparticion": no se reanuda sola. */
+  const stopPressedRef = useRef(false);
+
   /** Reloj local: recalcula la antiguedad del ultimo envio cada 2 s. */
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -97,12 +107,22 @@ export function TrackingScreen({
     let active = true;
     void (async () => {
       const stored = await loadShare();
-      if (!active || !stored) return;
-      if (stored.deviceId !== device.id || isExpired(stored.expiresAt)) {
+      if (!active) return;
+
+      if (
+        stored &&
+        stored.deviceId === device.id &&
+        !isExpired(stored.expiresAt)
+      ) {
+        setShare(stored);
+      } else if (stored) {
+        // Sesion de otro equipo o ya expirada: no sirve, se descarta.
         await clearShare();
-        return;
       }
-      setShare(stored);
+
+      // Hasta llegar aqui no se sabe si habia sesion: el arranque automatico
+      // espera a esta marca para no abrir una sesion nueva sin necesidad.
+      setShareLoaded(true);
     })();
     return () => {
       active = false;
@@ -173,6 +193,8 @@ export function TrackingScreen({
 
   /** Detiene el servicio y cierra la sesion en el servidor. */
   const stopSharing = useCallback(async () => {
+    // Parada explicita: el arranque automatico la respeta y no reanuda solo.
+    stopPressedRef.current = true;
     setBusy(true);
     setError(null);
     await stop();
@@ -192,6 +214,48 @@ export function TrackingScreen({
 
     setBusy(false);
   }, [stop, share, session, onSessionRefreshed]);
+
+  /**
+   * Arranque automatico de la comparticion.
+   *
+   * Requisito: en cuanto el usuario concede los permisos, la comparticion debe
+   * empezar sola, sin tener que pulsar "Iniciar comparticion". Para que el flujo
+   * sea completo se hacen dos cosas:
+   *   1. Al entrar en esta pantalla se solicitan los permisos una sola vez (los
+   *      dialogos del sistema son la unica via para concederlos). Entrar aqui ya
+   *      es un acto de voluntad: el usuario ha elegido este equipo para compartir.
+   *   2. Cuando los permisos ya estan completos -- porque venian concedidos o
+   *      porque se acaban de dar, por ejemplo al volver de los ajustes del
+   *      sistema -- se arranca el seguimiento.
+   *
+   * Se respetan siempre las decisiones explicitas y se evitan los bucles:
+   *   - "Detener comparticion" apaga el arranque automatico en esa visita.
+   *   - Si algo falla (red, permisos bloqueados) no se reintenta sin fin: queda el
+   *     boton manual para el siguiente intento.
+   */
+  useEffect(() => {
+    // Sin saber aun si habia una sesion guardada, o sin el estado de permisos, no
+    // se decide nada: se espera al primer refresco del hook.
+    if (!shareLoaded || !state.permissions) return;
+    if (state.status === "starting" || state.status === "tracking") return;
+    if (busy || stopPressedRef.current) return;
+
+    const permissionsComplete =
+      state.permissions.foregroundGranted &&
+      state.permissions.backgroundGranted;
+
+    if (permissionsComplete) {
+      if (autoStartedRef.current) return;
+      autoStartedRef.current = true;
+      void startSharing();
+      return;
+    }
+
+    // Todavia faltan permisos: se piden una sola vez por visita.
+    if (autoRequestedRef.current) return;
+    autoRequestedRef.current = true;
+    void startSharing();
+  }, [shareLoaded, state.permissions, state.status, busy, startSharing]);
 
   const tracking = state.status === "tracking";
   const lastSent = state.lastSent;
@@ -368,7 +432,11 @@ export function TrackingScreen({
         <InfoRow
           label="Estado de carga"
           value={
-            battery ? (battery.charging ? "Cargando" : "Con bateria") : "Sin dato"
+            battery
+              ? battery.charging
+                ? "Cargando"
+                : "Con bateria"
+              : "Sin dato"
           }
         />
         <View style={styles.spacer} />
@@ -469,8 +537,9 @@ export function TrackingScreen({
           </>
         ) : (
           <Text style={styles.muted}>
-            Aun no se ha enviado ninguna lectura. Pulsa &quot;Iniciar
-            comparticion&quot;.
+            Aun no se ha enviado ninguna lectura. La comparticion arranca sola
+            en cuanto esten concedidos los permisos; si algo falla, puedes
+            intentarlo con el boton.
           </Text>
         )}
       </Card>
@@ -517,7 +586,16 @@ export function TrackingScreen({
             <ActivityIndicator color={colors.accent} />
             <Text style={styles.muted}>Solicitando permisos y GPS...</Text>
           </View>
-        ) : null}
+        ) : (
+          <>
+            <View style={styles.spacer} />
+            <Text style={styles.muted}>
+              La comparticion se inicia sola al conceder los permisos. Usa
+              &quot;Detener comparticion&quot; para pararla: no se reanuda hasta
+              que la actives de nuevo.
+            </Text>
+          </>
+        )}
       </Card>
 
       {state.lastError ? <Alert message={state.lastError} tone="info" /> : null}

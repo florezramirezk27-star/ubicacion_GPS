@@ -85,7 +85,7 @@ La Ley 1581 (art. 4) fija principios. Aqui estan aterrizados en el sistema:
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | **Legalidad**                        | Solo se trata ubicacion de quien la autoriza desde su propio equipo.                                                 | Todo el diseno                             |
 | **Finalidad**                        | La ubicacion sirve para mostrarla en el panel del titular. No hay otro uso.                                          | Sin analitica ni reventa                   |
-| **Libertad**                         | Compartir es un acto positivo: hay que pulsar _Iniciar comparticion_. No hay valor por defecto ni captura implícita. | `TrackingScreen`, `POST /shares`           |
+| **Libertad**                         | Compartir es un acto positivo: hay que elegir el dispositivo y conceder permisos; la app no captura nada al abrirse.  | `TrackingScreen`, `POST /shares`           |
 | **Veracidad**                        | Se guarda `recorded_at` (captura) y no se inventa frescura; un dato viejo se muestra viejo.                          | `classifyFreshness`, `LOCATION_FRESHNESS`  |
 | **Transparencia**                    | La app explica que se envia y con que frecuencia; el historial es consultable.                                       | `TrackingScreen`, `GET /locations/history` |
 | **Acceso y circulacion restringida** | Autorizacion por propietario en cada recurso; el WebSocket verifica propiedad antes de suscribir.                    | `findOwnedOrThrow`, `LiveGateway`          |
@@ -98,8 +98,9 @@ La Ley 1581 y el Decreto 1377 exigen autorizacion **previa, expresa e
 informada**. En este sistema no es un texto legal enterrado en unos terminos: es
 un acto tecnico verificable.
 
-1. **Previa.** El dispositivo no envia nada hasta que el usuario pulsa _Iniciar
-   comparticion_. La app no captura ubicacion al abrirse.
+1. **Previa.** El dispositivo no envia nada hasta que el usuario elige un equipo
+   y concede los permisos; entonces la comparticion arranca sola. La app no
+   captura ubicacion al abrirse.
 2. **Expresa.** El sistema operativo pide el permiso de ubicacion con un dialogo
    propio del sistema (`requestForegroundPermissionsAsync`). Para seguir con la
    pantalla bloqueada se solicita ademas el permiso de **segundo plano**
