@@ -273,9 +273,26 @@ consultas administrativas.
 
 ## 11. Verificacion
 
-No hay todavia un script automatizado especifico para el acceso remoto (el resto
-de la plataforma si los tiene, ver [`pruebas.md`](pruebas.md)). Para comprobarlo
-manualmente, con la API, el panel y un telefono (o emulador) en marcha:
+El **cableado** del acceso remoto se comprueba de forma automatica con:
+
+```bash
+pnpm test:remote
+```
+
+`node scripts/check-remote-access.mjs` recorre las tres capas (contrato
+compartido, API/panel y app movil) y verifica, entre otras cosas, que el contrato
+`@geo/shared` define sensores, estados, eventos y esquemas; que el esquema de
+Prisma tiene los modelos y las cascadas; que la API protege las rutas con
+`AdminGuard`, **audita cada paso** y caduca las solicitudes sin respuesta; que el
+gateway `/media` solo admite al dueno o a un `SUPERADMIN`; que **el panel no
+captura** (no usa `getUserMedia`); y que la app pide consentimiento, resuelve
+permisos antes de aceptar y muestra el indicador con "Cortar ahora". El
+seguimiento en segundo plano (`pnpm test:background`) ya cubria parte de este
+cableado del lado del telefono.
+
+Lo que **no** se automatiza —porque depende del hardware, de los permisos del
+sistema y de la red— es el flujo real. Para comprobarlo a mano, con la API, el
+panel y un telefono (o emulador) en marcha:
 
 1. Entra al panel como `admin@geo.test` / `Admin1234`, abre la ficha de un
    dispositivo y solicita camara o microfono.

@@ -166,6 +166,33 @@ comportamiento del sistema operativo en un telefono concreto. La captura con la
 pantalla bloqueada y la cola sin conexion se comprueban a mano (ver la lista de
 la seccion 10).
 
+### 3.3 Acceso remoto a camara y microfono (cableado)
+
+```bash
+pnpm test:remote
+```
+
+`node scripts/check-remote-access.mjs` no puede abrir una camara ni establecer una
+conexion WebRTC real, pero comprueba —leyendo archivos— que las garantias del
+acceso remoto estan cableadas de extremo a extremo:
+
+| Grupo                | Comprueba                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Contrato compartido  | `@geo/shared` define sensores, los cinco estados (incluido `EXPIRED`), eventos de WebSocket, esquemas Zod y limites (TTL y tamano de SDP) |
+| Modelo de datos      | Prisma tiene `RemoteAccessRequest` y `MediaSession`, sus enums y las relaciones **en cascada** (`requestId @unique`) |
+| Autorizacion         | Las rutas de administracion exigen `AdminGuard`; **audita** crear/cancelar/rechazar/aceptar/iniciar/terminar       |
+| Sin activacion       | La sesion **solo** se crea tras la aceptacion (`accept: false` deja constancia); el panel web **no usa `getUserMedia`** |
+| Caducidad y canal    | `expireStale` / `expiresAt`; el gateway `/media` exige sesion `ACTIVE` y ser el dueno o `SUPERADMIN`             |
+| App movil            | Consentimiento bloqueante (Modal, Permitir/Rechazar), permisos resueltos antes de aceptar, aviso fijo y "Cortar ahora", notificacion local |
+
+El script actual responde **46 comprobaciones, todas correctas**. Nota: parte del
+cableado del lado del telefono ya estaba cubierto por `pnpm test:background`
+(seccion 11 de ese script).
+
+**Limitacion honesta.** Esto verifica el **cableado**; el flujo real (permisos del
+sistema, WebRTC, NAT) se comprueba a mano con un telefono y un navegador (puntos 17
+de la seccion 10).
+
 ## 4. Medicion de latencia
 
 ```bash
@@ -223,7 +250,10 @@ build` no las empaquete) y el conjunto completo, incluidas las pruebas, con
 | La app sigue compartiendo con la pantalla bloqueada           | `pnpm test:background` (cableado) + **manual** (dispositivo real)   |
 | El permiso de segundo plano no se re-pide en cada arranque    | `pnpm test:background`: flujo de permisos con marca `primed`        |
 | Sin conexion, las lecturas se guardan y se reenvian           | `pnpm test:background` (cola persistente) + **manual** (modo avion) |
-| Despliegue con HTTPS sin exponer secretos                     | **Pendiente** (no automatizado)                                     |
+| El acceso remoto exige consentimiento explicito               | `pnpm test:remote`: la sesion solo nace tras `accept: true` (Permitir/Rechazar en el movil) |
+| Cada sesion remota queda auditada y caduca sin respuesta      | `pnpm test:remote`: acciones `remote.*` y `expireStale`             |
+| El panel **no** captura; solo lo hace el dispositivo          | `pnpm test:remote`: el visor web no usa `getUserMedia`              |
+| Despliegue con HTTPS sin exponer secretos                     | **Manual**: guia en [`despliegue.md`](despliegue.md) (no automatizado) |
 | El informe explica por que el numero no da el GPS             | [`investigacion.md`](investigacion.md)                              |
 
 ## 8. Trazabilidad: caracteristicas de tiempo real
@@ -241,6 +271,7 @@ build` no las empaquete) y el conjunto completo, incluidas las pruebas, con
 | Circulos de incertidumbre en el mapa                        | **Manual** (el radio sale de `accuracyMeters`, ya probado)         |
 | Seguimiento en segundo plano                                | `pnpm test:background` (cableado); el comportamiento, **manual**   |
 | Cola sin conexion persistente                               | `pnpm test:background` (persistencia) + **manual** (modo avion)    |
+| Acceso remoto a camara/microfono                            | `pnpm test:remote` (cableado); el flujo WebRTC, **manual**         |
 
 ## 9. Lo que NO esta automatizado
 
@@ -260,11 +291,13 @@ Honestidad sobre los limites de esta suite:
   de direcciones (unitarias).
 - **Pruebas de carga y concurrencia.** No se mide comportamiento con muchos
   dispositivos simultaneos.
-- **El acceso remoto a camara/microfono.** No hay un script especifico: la
-  senalizacion WebRTC y el consentimiento dependen de un telefono (o emulador) y
-  de un navegador, y ninguna prueba unitaria cubre aun los esquemas de
-  `@geo/shared` ni el gateway `/media`. El flujo completo se comprueba a mano
-  (punto 17 de la seccion 10). Ver [`acceso-remoto.md`](acceso-remoto.md).
+- **El acceso remoto a camara/microfono.** El **cableado** si se verifica
+  (`pnpm test:remote`, seccion 3.3): el contrato y los esquemas de `@geo/shared`,
+  el modelo de Prisma, la autorizacion y la auditoria de la API, el gateway
+  `/media` y el que el panel no capture. Lo que sigue siendo manual es el flujo
+  real: la senalizacion WebRTC y el consentimiento dependen de un telefono (o
+  emulador) y de un navegador (punto 17 de la seccion 10). Ver
+  [`acceso-remoto.md`](acceso-remoto.md).
 - **Pruebas de integracion con la base de datos en Jest.** Las pruebas unitarias
   evitan la base de datos a proposito; su cobertura real la aportan los scripts
   de humo y de canal en vivo, que si la usan.

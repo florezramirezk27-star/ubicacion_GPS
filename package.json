@@ -24,6 +24,8 @@
     "test:api": "node scripts/smoke-api.mjs",
     "test:live": "node scripts/check-live.mjs",
     "test:admin": "node scripts/check-admin.mjs",
+    "test:background": "node scripts/check-mobile-background.mjs",
+    "test:remote": "node scripts/check-remote-access.mjs",
     "measure:latency": "node scripts/measure-latency.mjs",
     "simulate": "node scripts/simulate-mobile.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""

@@ -223,6 +223,7 @@ Si la llegada en vivo se cae, el panel lo avisa y sigue refrescando por consulta
 | `pnpm test:live`              | Verifica la cadena HTTP -> WebSocket              |
 | `pnpm test:admin`             | Verifica el panel de administracion y su canal    |
 | `pnpm test:background`        | Verifica el cableado del seguimiento en segundo plano |
+| `pnpm test:remote`            | Verifica el cableado del acceso remoto (camara/microfono) |
 | `pnpm measure:latency`        | Mide la latencia del canal en vivo (estadisticas) |
 | `pnpm simulate`               | Simula un telefono enviando coordenadas           |
 
