@@ -1,12 +1,15 @@
 # Modelo de datos
 
-Siete tablas en PostgreSQL 16, gestionadas con Prisma 7 y migraciones versionadas
+Nueve tablas en PostgreSQL 16, gestionadas con Prisma 7 y migraciones versionadas
 en `apps/api/prisma/migrations/`.
 
 ```
 users ──┬──< sessions
         ├──< devices ──┬──< location_shares ──< locations
-        │              └──< locations
+        │              ├──< locations
+        │              ├──< remote_access_requests ──< media_sessions (1-1)
+        │              └──< media_sessions
+        ├──< remote_access_requests (quien solicita)
         └──< audit_logs (actor)
 
 geocode_cache   (independiente: cache de geocodificacion inversa)
@@ -132,6 +135,48 @@ telefono estuvo sin red 10 minutos y luego sube las lecturas en cola, esas
 lecturas se muestran como antiguas, no como recientes. Mostrar `received_at`
 seria fingir frescura.
 
+## `remote_access_requests`
+
+Solicitud de acceso remoto a camara o microfono. La crea un `SUPERADMIN`; **el
+dispositivo no captura nada** hasta que su dueno la acepta de forma explicita en
+la app movil.
+
+| Columna                    | Tipo                       | Nota                                                      |
+| -------------------------- | -------------------------- | --------------------------------------------------------- |
+| `id`                       | text (CUID)                |                                                           |
+| `device_id`                | text → `devices.id`        | `onDelete: Cascade`                                       |
+| `requested_by`             | text → `users.id`          | administrador que la creo; `onDelete: Cascade`            |
+| `sensor`                   | enum `RemoteSensor`        | `CAMERA`, `MICROPHONE`, `CAMERA_AND_MICROPHONE`           |
+| `reason`                   | varchar(280), opcional     | motivo que se muestra al usuario                          |
+| `status`                   | enum `RemoteRequestStatus` | `PENDING`, `ACCEPTED`, `REJECTED`, `EXPIRED`, `CANCELLED` |
+| `expires_at`               | timestamptz(6)             | validez; al vencer pasa a `EXPIRED`                       |
+| `responded_at`             | timestamptz(6), opcional   | cuando se resolvio                                        |
+| `created_at`, `updated_at` | timestamptz(6)             |                                                           |
+
+Indices: `(device_id, status)`, `(status, expires_at)`. Como maximo una solicitud
+`PENDING` por dispositivo: el silencio nunca se interpreta como consentimiento.
+Ver [`acceso-remoto.md`](acceso-remoto.md).
+
+## `media_sessions`
+
+Sesion de medios (camara/microfono) abierta tras el consentimiento visible. Hay a
+lo sumo una por solicitud (relacion 1-1 sobre `request_id`).
+
+| Columna        | Tipo                                              | Nota                                                |
+| -------------- | ------------------------------------------------- | --------------------------------------------------- |
+| `id`           | text (CUID)                                       |                                                     |
+| `request_id`   | text → `remote_access_requests.id`, unico         | `onDelete: Cascade`                                 |
+| `device_id`    | text → `devices.id`                               | `onDelete: Cascade`                                 |
+| `sensor`       | enum `RemoteSensor`                               |                                                     |
+| `status`       | enum `MediaSessionStatus`                         | `ACTIVE` \| `ENDED`; solo pasa de ACTIVE a ENDED    |
+| `started_at`   | timestamptz(6)                                    |                                                     |
+| `ended_at`     | timestamptz(6), opcional                          |                                                     |
+| `ended_by`     | text, opcional                                     | id del usuario que cerro, o `device` / `system`     |
+| `ended_reason` | varchar(160), opcional                            | motivo textual del cierre                           |
+
+Indice: `(device_id, status)`. El audio y el video **no** se almacenan: viajan de
+extremo a extremo por WebRTC y el servidor solo reenvia la senalizacion.
+
 ## `geocode_cache`
 
 Cache de **geocodificacion inversa**. Es independiente del resto del modelo: solo
@@ -173,11 +218,14 @@ Que un actor sea opcional y `onDelete: SetNull` es deliberado: si se elimina una
 cuenta, el rastro de lo ocurrido debe permanecer para poder auditar.
 
 **Alcance actual.** Se auditan el registro, el inicio de sesion (con los intentos
-fallidos), el ciclo de vida de las sesiones de comparticion y las **acciones del
+fallidos), el ciclo de vida de las sesiones de comparticion, las **acciones del
 panel de administracion** (`admin.device.view`, `admin.history.view`,
-`admin.share.revoke_all`, `admin.device.unlink`). El ciclo de vida de los
-dispositivos (alta/baja por parte del usuario) y la ingesta de coordenadas **no**
-se auditan; el motivo esta en [`seguridad.md`](seguridad.md).
+`admin.share.revoke_all`, `admin.device.unlink`) y todo el **acceso remoto a
+camara/microfono** (`remote.request.create`, `remote.request.cancel`,
+`remote.request.accept`, `remote.request.reject`, `remote.session.start`,
+`remote.session.end`). El ciclo de vida de los dispositivos (alta/baja por parte
+del usuario) y la ingesta de coordenadas **no** se auditan; el motivo esta en
+[`seguridad.md`](seguridad.md).
 
 ---
 
@@ -254,7 +302,8 @@ pnpm --filter @geo/api exec prisma migrate deploy
 2. Inicia una LocationShare  ->  el servidor devuelve el shareToken UNA vez.
 3. El dispositivo envia Locations mientras la sesion siga ACTIVE y vigente.
 4. El usuario detiene o revoca la sesion  ->  la ingesta se rechaza (403).
-5. Eliminar un Device borra en cascada sus sesiones y ubicaciones.
+5. Eliminar un Device borra en cascada sus sesiones, ubicaciones, solicitudes de
+   acceso remoto y sesiones de medios.
    Eliminar un User borra en cascada sus dispositivos (y por tanto sus datos),
    pero conserva los audit_logs con actor nulo.
 6. La geocode_cache es independiente: se purga por vencimiento (TTL), no por baja

@@ -33,6 +33,11 @@ cada una de esas consultas queda registrada en la auditoria.
 - **Panel de administracion** (`/admin`, rol `SUPERADMIN`): vision global de
   todos los dispositivos autorizados, en vivo, con filtros, ficha completa y
   gestion (revocar sesiones / desvincular equipos).
+- **Acceso remoto a camara y microfono** (consentimiento explicito): el
+  Superadministrador solo puede **solicitar**; la camara o el microfono se abren
+  unicamente si la persona acepta en su telefono, muestra un aviso fijo con boton
+  para cortar y todo queda auditado. Con la app cerrada no hay entrega
+  (`docs/acceso-remoto.md`).
 - **Direccion aproximada**: geocodificacion inversa con cache y limite de ritmo;
   si no hay datos, el panel lo dice en vez de inventar una direccion.
 - **Circulos de incertidumbre** en el mapa: el radio del punto es la precision
@@ -186,15 +191,21 @@ node scripts/watch-live.mjs      # se suscribe y registra location:update / devi
 4. **Revocar acceso** corta las sesiones de comparticion y **Desvincular
    dispositivo** elimina el equipo y su historial; ambas piden confirmacion y
    quedan auditadas.
-5. Al final, **Eventos de seguridad** muestra quien miro que y cuando.
+5. En la ficha, **Acceso remoto a camara y microfono**: el administrador **solo
+   puede solicitar**. Si la persona acepta en su telefono, ve el flujo en
+   directo y puede finalizarlo en cualquier momento; ver
+   [`docs/acceso-remoto.md`](docs/acceso-remoto.md).
+6. Al final, **Eventos de seguridad** muestra quien miro que y cuando.
 
 Si la llegada en vivo se cae, el panel lo avisa y sigue refrescando por consulta.
 
 > **Alcance honesto.** El administrador solo ve lo que los dispositivos
 > **compartieron** y los metadatos que la app reporta. No accede a conversaciones,
-> fotos ni llamadas, y **no** puede localizar un telefono por su numero. Un dato
-> viejo se marca como antiguo o desconectado; nunca como actual. Detalle en
-> [`docs/admin.md`](docs/admin.md).
+> fotos ni llamadas, y **no** puede localizar un telefono por su numero. La
+> camara o el microfono solo se abren con **consentimiento explicito** del
+> usuario, nunca en silencio. Un dato viejo se marca como antiguo o desconectado;
+> nunca como actual. Detalle en [`docs/admin.md`](docs/admin.md) y
+> [`docs/acceso-remoto.md`](docs/acceso-remoto.md).
 
 ## Scripts utiles
 
@@ -225,6 +236,7 @@ Si la llegada en vivo se cae, el panel lo avisa y sigue refrescando por consulta
 | [`docs/tiempo-real.md`](docs/tiempo-real.md)                 | Tabla de caracteristicas y politica de frescura |
 | [`docs/segundo-plano.md`](docs/segundo-plano.md)             | Ubicacion en segundo plano: limites y permisos  |
 | [`docs/admin.md`](docs/admin.md)                             | Panel de Superadministrador y geocodificacion   |
+| [`docs/acceso-remoto.md`](docs/acceso-remoto.md)             | Camara/microfono con consentimiento: WebRTC y limites |
 | [`docs/seguridad.md`](docs/seguridad.md)                     | Contrasenas, sesiones, autorizacion, auditoria  |
 | [`docs/privacidad.md`](docs/privacidad.md)                   | Ley 1581 de 2012, guias de la SIC y retencion   |
 | [`docs/investigacion.md`](docs/investigacion.md)             | Comparacion de los tres metodos de localizacion |
@@ -241,6 +253,9 @@ Si la llegada en vivo se cae, el panel lo avisa y sigue refrescando por consulta
       multi-dispositivo con circulos de incertidumbre, ficha, historial, gestion y
       auditoria de cada consulta
 - [x] Geocodificacion inversa con cache y limite de ritmo (direccion aproximada)
+- [x] Acceso remoto a camara y microfono con consentimiento explicito: solicitud
+      auditable que caduca sola, sesion de medios WebRTC, visor en el panel y
+      aviso fijo cortable desde el telefono (sin activacion silenciosa)
 - [x] App movil (Expo 58): inicio de sesion, vinculacion, captura GPS en primer plano,
       frecuencia configurable, cola de reintento sin conexion y deteccion de sesion revocada
 - [x] Seguimiento en segundo plano (servicio en primer plano en Android, modo de
@@ -252,5 +267,3 @@ Si la llegada en vivo se cae, el panel lo avisa y sigue refrescando por consulta
       (login y envio de coordenadas en vivo por WebSocket)
 - [ ] Despliegue con HTTPS
 - [ ] Informe academico final
-#   u b i c a c i o n _ G P S  
- 

@@ -30,6 +30,7 @@
 | Direccion IP                               | Dato personal                    | Se registra en la auditoria.                                       |
 | Metadatos de auditoria                     | Personal, variable               | Cifrados en reposo.                                                |
 | Direccion aproximada (geocodificacion)     | Derivado, obtenido de un tercero | Estimacion del proveedor; solo si esta activo (ver nota abajo).    |
+| Video y audio en directo (acceso remoto)   | Dato de cuidado; **no se almacena** | Solo con consentimiento explicito; viaja por WebRTC y no se graba. |
 
 ### ¿Son datos sensibles?
 
@@ -135,6 +136,11 @@ Base de registro: cada inicio y cierre de autorizacion queda en `audit_logs`
 (`share.start`, `share.stop`, `share.revoke`) con marca temporal e IP. La ingesta
 de cada coordenada no se audita individualmente: la autorizacion que la ampara si
 queda registrada al abrir la sesion.
+
+El **acceso remoto a camara y microfono** sigue la misma logica: solicitar,
+aceptar, rechazar y cerrar dejan registro (`remote.request.*`, `remote.session.*`),
+y el video o el audio **no se almacenan** en ningun momento: viajan de extremo a
+extremo por WebRTC. Ver [`acceso-remoto.md`](acceso-remoto.md).
 
 ## Derechos del titular y como se ejercen
 

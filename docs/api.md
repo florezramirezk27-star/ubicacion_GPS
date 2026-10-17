@@ -347,6 +347,10 @@ Todas estas rutas exigen el rol `SUPERADMIN`; con un usuario normal responden
 | `POST /admin/devices/:id/revoke`  | Revoca las sesiones de comparticion activas (`{ revoked }`)     |
 | `DELETE /admin/devices/:id`       | Desvincula el dispositivo y su historial (`{ success: true }`)  |
 | `GET /admin/audit?action=&limit=` | Feed de eventos de seguridad (auditoria administrativa)         |
+| `POST /admin/devices/:id/remote-access` | Crea una solicitud de acceso a camara/microfono (auditada) |
+| `GET /admin/remote-access`        | Lista solicitudes de acceso remoto                              |
+| `POST /admin/remote-access/:id/cancel` | Cancela una solicitud pendiente                            |
+| `POST /admin/media-sessions/:id/end` | Finaliza una sesion de medios activa                         |
 
 Filtros de `GET /admin/devices`: `platform`, `status`, `q` (nombre o correo),
 `userId` y `limit` (1–500, por defecto 200).
@@ -369,12 +373,62 @@ Filtros de `GET /admin/devices`: `platform`, `status`, `q` (nombre o correo),
 
 ---
 
+## Acceso remoto a camara y microfono
+
+Documentado en detalle en [`acceso-remoto.md`](acceso-remoto.md). El
+administrador solo puede **solicitar**; la camara o el microfono se abren
+unicamente si la persona acepta de forma explicita desde su telefono.
+
+### Bloque del administrador (rol `SUPERADMIN`)
+
+| Metodo y ruta                           | Que hace                                                       |
+| --------------------------------------- | -------------------------------------------------------------- |
+| `POST /admin/devices/:id/remote-access` | Crea la solicitud: `{ sensor, reason?, ttlSeconds? }` → `201`   |
+| `GET /admin/remote-access`              | Lista solicitudes (filtros `deviceId`, `status`, `limit`)       |
+| `POST /admin/remote-access/:id/cancel`  | Cancela una solicitud `PENDING`                                 |
+| `POST /admin/media-sessions/:id/end`    | Finaliza una sesion activa (`{ reason? }`)                     |
+
+`sensor` es `CAMERA`, `MICROPHONE` o `CAMERA_AND_MICROPHONE`. `ttlSeconds` va de
+15 a 600 (por defecto 120); si nadie responde, la solicitud pasa a `EXPIRED`.
+
+### Bloque del dispositivo (usuario autenticado, solo sus equipos)
+
+| Metodo y ruta                            | Que hace                                                        |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `GET /remote-access/pending`             | Solicitudes `PENDING` y vigentes de sus dispositivos            |
+| `POST /remote-access/:id/respond`        | `{ accept: boolean }`; `accept: true` crea la sesion de medios  |
+| `GET /remote-access/sessions/active`     | Sesiones de medios abiertas en sus dispositivos                 |
+| `POST /remote-access/sessions/:id/end`   | Corta una sesion desde el telefono (`{ reason? }`)              |
+
+```json
+// POST /remote-access/:id/respond  →  { accept: true }
+{
+  "request": { "...PublicRemoteAccessRequest...": null },
+  "session": {
+    "id": "cm...",
+    "requestId": "cm...",
+    "deviceId": "cm...",
+    "sensor": "CAMERA",
+    "status": "ACTIVE",
+    "startedAt": "2026-10-16T12:15:35.000Z",
+    "endedAt": null,
+    "endedReason": null
+  }
+}
+```
+
+**Errores**: `403` fuera de rol (bloque admin) o si no es el dueno (bloque
+dispositivo); `404` solicitud inexistente; `409` ya resuelta; `410` si caduco.
+
+---
+
 ## WebSocket (Socket.IO)
 
-Mismo host y puerto que la API, en dos **namespaces**:
+Mismo host y puerto que la API, en tres **namespaces**:
 
-- el namespace raiz (`/`) para el seguimiento por dispositivo, y
-- el namespace `/admin` para el panel de Superadministrador.
+- el namespace raiz (`/`) para el seguimiento por dispositivo,
+- el namespace `/admin` para el panel de Superadministrador, y
+- el namespace `/media` para la senalizacion WebRTC del acceso remoto.
 
 ### Namespace raiz — seguimiento por dispositivo
 
@@ -454,3 +508,31 @@ const admin = io("http://localhost:3001/admin", {
 
 `kind` de `admin:device-change` es `device.updated`, `device.removed` o
 `share.changed`.
+
+El panel tambien recibe, en el mismo namespace, los eventos del acceso remoto:
+`admin:remote-request` (cambio de estado de una solicitud) y `admin:media-session`
+(cambio de una sesion de medios), ambos con carga `PublicRemoteAccessRequest`.
+
+### Namespace `/media` — senalizacion WebRTC
+
+Solo se usa para una **sesion de medios ya aceptada**. El telefono es la fuente y
+crea la oferta; el visor del panel responde. El servidor reenvia SDP e ICE, nunca
+el audio ni el video (que van de extremo a extremo). La autorizacion es por
+sesion: `media:join` comprueba que la sesion esta `ACTIVE` y que el cliente es el
+dueno del dispositivo o un `SUPERADMIN`.
+
+| Evento (cliente → servidor) | Carga                                       |
+| --------------------------- | ------------------------------------------- |
+| `media:join`                | `{ sessionId }` (acuse `media:joined`)      |
+| `media:offer`               | `{ sessionId, type: "offer", sdp }`         |
+| `media:answer`              | `{ sessionId, type: "answer", sdp }`        |
+| `media:ice`                 | `{ sessionId, type: "candidate", ... }`     |
+| `media:end`                 | `{ sessionId }`                             |
+
+| Evento (servidor → cliente) | Cuando                                       |
+| --------------------------- | -------------------------------------------- |
+| `media:error`               | senal invalida, no unido o sesion no activa  |
+| `media:end`                 | el servicio cerro la sesion                 |
+
+La sala de cada sesion es `media:<sessionId>`. Detalle en
+[`acceso-remoto.md`](acceso-remoto.md).

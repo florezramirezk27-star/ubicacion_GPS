@@ -260,6 +260,11 @@ Honestidad sobre los limites de esta suite:
   de direcciones (unitarias).
 - **Pruebas de carga y concurrencia.** No se mide comportamiento con muchos
   dispositivos simultaneos.
+- **El acceso remoto a camara/microfono.** No hay un script especifico: la
+  senalizacion WebRTC y el consentimiento dependen de un telefono (o emulador) y
+  de un navegador, y ninguna prueba unitaria cubre aun los esquemas de
+  `@geo/shared` ni el gateway `/media`. El flujo completo se comprueba a mano
+  (punto 17 de la seccion 10). Ver [`acceso-remoto.md`](acceso-remoto.md).
 - **Pruebas de integracion con la base de datos en Jest.** Las pruebas unitarias
   evitan la base de datos a proposito; su cobertura real la aportan los scripts
   de humo y de canal en vivo, que si la usan.
@@ -306,6 +311,12 @@ reprodujeron.
         no como recien llegados.
 16. [ ] **Forzar la detencion** desde los recientes: el envio se detiene; se
         documenta como comportamiento esperado del sistema, no como fallo.
+17. [ ] **Acceso remoto**: desde la ficha en `/admin`, solicitar camara o
+        microfono. El telefono debe mostrar el dialogo de consentimiento; al
+        aceptar, el aviso fijo y el flujo en directo en el panel; "Cortar ahora"
+        en el telefono debe cerrar la sesion y dejar `remote.session.end` en la
+        auditoria. Repetir dejando caducar la solicitud: pasa a `EXPIRED` sin
+        abrir nada.
 
 ### 10.1 Evidencia en dispositivo real (2026-10-16)
 

@@ -18,8 +18,10 @@ muestra exclusivamente:
   permiso de ubicacion y, si estuviera disponible, nivel de bateria).
 
 No accede a conversaciones, fotos, llamadas, contactos ni a la ubicacion sin
-autorizacion. **No** permite localizar un telefono por su numero. Un dato antiguo
-se marca siempre como _datos antiguos_ o _desconectado_; nunca se presenta como
+autorizacion. **No** permite localizar un telefono por su numero. La camara o el
+microfono solo se abren con **consentimiento explicito** del usuario (ver
+[`acceso-remoto.md`](acceso-remoto.md)), nunca en silencio. Un dato antiguo se
+marca siempre como _datos antiguos_ o _desconectado_; nunca se presenta como
 actual. Cada consulta de ficha o historial queda registrada en la auditoria.
 
 Esta delimitacion es coherente con `docs/tiempo-real.md`, `docs/privacidad.md` y
@@ -195,6 +197,12 @@ cifrados):
 | `admin.history.view`     | se consulta el historial de un dispositivo |
 | `admin.share.revoke_all` | se revocan las sesiones de un dispositivo  |
 | `admin.device.unlink`    | se desvincula un dispositivo               |
+| `remote.request.create`  | se solicita acceso a camara/microfono      |
+| `remote.request.cancel`  | se cancela una solicitud de acceso         |
+| `remote.request.accept`  | la persona acepta la solicitud en el movil |
+| `remote.request.reject`  | la persona rechaza la solicitud en el movil |
+| `remote.session.start`   | se abre una sesion de medios               |
+| `remote.session.end`     | se cierra (administrador, usuario o sistema) |
 
 El panel muestra ese feed en "Eventos de seguridad". La idea es que el
 administrador **no pueda espiar en silencio**: queda constancia de quien miro que
@@ -242,3 +250,17 @@ revocacion corta la ingesta con `403`.
 `admin@geo.test` / `Admin1234` con rol `SUPERADMIN` y metadatos de ejemplo en los
 dos dispositivos (version de app, sistema, bateria y permiso), para que el panel
 tenga datos que mostrar.
+
+## 12. Acceso remoto a camara y microfono
+
+Desde la ficha de un dispositivo, el Superadministrador puede **solicitar** una
+sesion de camara o microfono. Es la unica via por la que el panel llega a esos
+sensores, y **no puede activarlos**: la persona debe aceptar de forma explicita
+en su telefono, ve un aviso fijo con boton para cortar, y toda la operacion queda
+auditada. La solicitud caduca sola si nadie responde (el silencio no es
+consentimiento). Con la app cerrada no hay entrega.
+
+Reglas, modelo de datos, senalizacion WebRTC y limites en
+[`acceso-remoto.md`](acceso-remoto.md). Las acciones asociadas
+(`remote.request.*`, `remote.session.*`) aparecen en el feed de "Eventos de
+seguridad" descrito en la seccion 8.

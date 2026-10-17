@@ -19,9 +19,10 @@ viaja por la red.
 | Validacion estricta de toda entrada                            | Implementado                                      | `ZodValidationPipe`                  |
 | CORS restringido por lista blanca                              | Implementado                                      | `main.ts`, `env.ts`                  |
 | Sin claves secretas en la app movil                            | Implementado                                      | el movil solo guarda su `shareToken` |
-| Registro de auditoria de acciones sensibles                    | Implementado (auth, comparticiones y panel admin) | `AuditService`                       |
+| Registro de auditoria de acciones sensibles                    | Implementado (auth, comparticiones, panel admin y acceso remoto) | `AuditService`                       |
 | Autorizacion por rol (SUPERADMIN) para el panel global         | Implementado                                      | `AdminGuard`                         |
 | Revalidacion del rol contra la BD en el WebSocket `/admin`     | Implementado                                      | `AdminGateway`                       |
+| Consentimiento explicito para camara/microfono (WebRTC)        | Implementado (sin activacion silenciosa)          | `RemoteAccessService`, `/media`      |
 | Clave de geocodificacion solo en el backend                    | Implementado                                      | `GeocodingService`                   |
 | TLS obligatorio en produccion                                  | Pendiente (despliegue)                            | —                                    |
 | Limitacion de intentos de inicio de sesion                     | **Pendiente**                                     | —                                    |
@@ -199,6 +200,12 @@ el coste en las consultas geograficas.
 | `admin.history.view`     | consulta del historial de un dispositivo |
 | `admin.share.revoke_all` | revocacion de las sesiones de un equipo  |
 | `admin.device.unlink`    | desvinculacion de un dispositivo         |
+| `remote.request.create`  | solicitud de acceso a camara/microfono   |
+| `remote.request.cancel`  | cancelacion de una solicitud de acceso   |
+| `remote.request.accept`  | aceptacion de la solicitud en el movil   |
+| `remote.request.reject`  | rechazo de la solicitud en el movil      |
+| `remote.session.start`   | apertura de una sesion de medios         |
+| `remote.session.end`     | cierre de una sesion de medios           |
 
 Cada registro incluye actor (cuando existe), accion, IP y metadatos cifrados.
 
