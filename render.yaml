@@ -22,13 +22,12 @@ services:
     branch: main
     healthCheckPath: /health
     autoDeploy: true
-    # Se instala pnpm con npm en lugar de `corepack enable`: el Corepack de las
-    # imagenes de Node falla con "Cannot find matching keyid" al verificar la
-    # firma de la descarga de pnpm. `npm i -g pnpm@<version>` es determinista y
-    # no depende de las claves de Corepack.
-    # NODE_VERSION debe ser >= 22.13.0: es el minimo que exige pnpm 11.
+    # Render detecta pnpm por la presencia de `pnpm-lock.yaml` y lo deja en el
+    # PATH (la imagen ya lo trae instalado), igual que hace con npm o yarn.
+    # NO hay que instalarlo: `npm install -g pnpm` falla con
+    # `EROFS: read-only file system` porque el directorio global de Node es de
+    # solo lectura. `NODE_VERSION` debe ser >= 22.13.0 (minimo de pnpm 11).
     buildCommand: >-
-      npm install -g pnpm@11.5.0 &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @geo/shared build &&
       pnpm --filter @geo/api build
@@ -80,7 +79,6 @@ services:
     healthCheckPath: /
     autoDeploy: true
     buildCommand: >-
-      npm install -g pnpm@11.5.0 &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @geo/shared build &&
       pnpm --filter @geo/web build

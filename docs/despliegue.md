@@ -97,7 +97,7 @@ monorepositorio).
 
 | Ajuste            | API                                                  | Panel web                                            |
 | ----------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| Build Command     | `npm install -g pnpm@11.5.0 && pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/api build` | `npm install -g pnpm@11.5.0 && pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/web build` |
+| Build Command     | `pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/api build` | `pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/web build` |
 | Start Command     | `pnpm --filter @geo/api prisma:deploy && pnpm --filter @geo/api start:prod` | `pnpm --filter @geo/web start`                |
 | Health Check Path | `/health`                                            | `/`                                                  |
 
@@ -139,27 +139,28 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # DAT
 > despues del primer arranque: si se pierde o se rota, esos metadatos dejan de
 > poder descifrarse. Tratala como un secreto permanente.
 
-### 5.2 Si el build falla con Corepack (`Cannot find matching keyid`)
+### 5.2 Si el build falla por gestion de pnpm (Corepack o EROFS)
 
-El Corepack que trae Node 22.11.0 puede fallar al verificar la firma de la
-descarga de pnpm:
+Render **detecta pnpm automaticamente** cuando el repositorio contiene
+`pnpm-lock.yaml` (igual que detecta yarn con `yarn.lock`): la imagen ya trae pnpm
+instalado y lo deja en el `PATH`. Por eso el `buildCommand` del Blueprint es
+simplemente `pnpm install --frozen-lockfile && ...`, **sin instalar pnpm**.
 
-```
-Error: Cannot find matching keyid: {"signatures":[{"sig":"...","keyid":"SHA256:..."}], ...}
-```
+Errores tipicos y su causa:
 
-No es un problema del proyecto. Por eso el `buildCommand` del Blueprint instala
-pnpm con npm (`npm install -g pnpm@11.5.0`) en lugar de `corepack enable`. Si por
-alguna razon sigues viendo este error, comprueba que el comando de build del
-servicio empieza exactamente con `npm install -g pnpm@11.5.0 && ...`.
+| Error en el log | Causa | Solucion |
+| --- | --- | --- |
+| `Cannot find matching keyid` | `corepack enable` + un Corepack antiguo que no reconoce la firma de la version de pnpm | Quitar `corepack enable` y **dejar que Render detecte pnpm** |
+| `EROFS: read-only file system ... /usr/lib/node_modules/pnpm` | `npm install -g pnpm` intenta reemplazar el pnpm que **ya viene** en la imagen, en un directorio de solo lectura | **No** instalar pnpm: usar el que Render provee |
+| `This version of pnpm requires at least Node.js v22.13` | Version de Node demasiado antigua | Subir `NODE_VERSION` (seccion 5.3) |
 
-Alternativas equivalentes: fijar la variable de entorno
-`COREPACK_INTEGRITY_KEYS=0` (desactiva la verificacion de firma de Corepack) o
-fijar `NODE_VERSION` a una version cuyo Corepack tenga claves vigentes.
+En resumen: **no instales pnpm** (`corepack enable` ni `npm install -g`). Deja
+que Render lo detecte por `pnpm-lock.yaml`.
 
 ### 5.3 Version de Node (pnpm 11 exige >= 22.13)
 
-`pnpm@11.5.0` requiere **Node >= 22.13**. Si el log muestra:
+`pnpm@11.5.0` (el fijado en `packageManager`) requiere **Node >= 22.13**. Si el
+log muestra:
 
 ```
 ERROR: This version of pnpm requires at least Node.js v22.13
@@ -167,10 +168,12 @@ The current version of Node.js is v22.11.0
 ```
 
 basta con usar una version de Node mas reciente. El `render.yaml` fija
-`NODE_VERSION=24.21.0` (la version por defecto actual de Render) en ambos
-servicios; el `engines.node` del `package.json` lo refleja
-(`>=22.13.0 <25.0.0`). Si cambias esta variable en el panel, hazlo en **los dos**
-servicios.
+`NODE_VERSION=24.21.0` (el *default* actual de Render) en ambos servicios; el
+`engines.node` del `package.json` lo refleja (`>=22.13.0 <25.0.0`). Si cambias
+esta variable en el panel, hazlo en **los dos** servicios.
+
+El `pnpm-lock.yaml` esta en `lockfileVersion: '9.0'`, compatible con pnpm 9, 10 y
+11, de modo que la version exacta de pnpm que use Render no es critica.
 
 ## 6. Paso 4: conectar el panel con la API y crear el administrador
 
