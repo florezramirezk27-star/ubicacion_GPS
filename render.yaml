@@ -22,8 +22,12 @@ services:
     branch: main
     healthCheckPath: /health
     autoDeploy: true
+    # Se instala pnpm con npm en lugar de `corepack enable`: Corepack de Node
+    # 22.11.0 falla con "Cannot find matching keyid" al verificar la firma de la
+    # descarga de pnpm. `npm i -g pnpm@<version>` es determinista y no depende de
+    # las claves de Corepack.
     buildCommand: >-
-      corepack enable &&
+      npm install -g pnpm@11.5.0 &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @geo/shared build &&
       pnpm --filter @geo/api build
@@ -34,8 +38,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22.11.0"
-      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
-        value: "0"
       - key: NODE_ENV
         value: production
       - key: API_HOST
@@ -77,7 +79,7 @@ services:
     healthCheckPath: /
     autoDeploy: true
     buildCommand: >-
-      corepack enable &&
+      npm install -g pnpm@11.5.0 &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @geo/shared build &&
       pnpm --filter @geo/web build
@@ -86,8 +88,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22.11.0"
-      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
-        value: "0"
       # IMPORTANTE: se incrusta en el bundle durante el BUILD. Si cambia, hay
       # que redesplegar este servicio (no basta con reiniciarlo).
       - key: NEXT_PUBLIC_API_URL

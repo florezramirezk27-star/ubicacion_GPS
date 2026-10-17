@@ -97,7 +97,7 @@ monorepositorio).
 
 | Ajuste            | API                                                  | Panel web                                            |
 | ----------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| Build Command     | `corepack enable && pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/api build` | `corepack enable && pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/web build` |
+| Build Command     | `npm install -g pnpm@11.5.0 && pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/api build` | `npm install -g pnpm@11.5.0 && pnpm install --frozen-lockfile && pnpm --filter @geo/shared build && pnpm --filter @geo/web build` |
 | Start Command     | `pnpm --filter @geo/api prisma:deploy && pnpm --filter @geo/api start:prod` | `pnpm --filter @geo/web start`                |
 | Health Check Path | `/health`                                            | `/`                                                  |
 
@@ -138,6 +138,24 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # DAT
 > `DATA_ENCRYPTION_KEY` cifra los metadatos de auditoria. **No debe cambiar**
 > despues del primer arranque: si se pierde o se rota, esos metadatos dejan de
 > poder descifrarse. Tratala como un secreto permanente.
+
+### 5.2 Si el build falla con Corepack (`Cannot find matching keyid`)
+
+El Corepack que trae Node 22.11.0 puede fallar al verificar la firma de la
+descarga de pnpm:
+
+```
+Error: Cannot find matching keyid: {"signatures":[{"sig":"...","keyid":"SHA256:..."}], ...}
+```
+
+No es un problema del proyecto. Por eso el `buildCommand` del Blueprint instala
+pnpm con npm (`npm install -g pnpm@11.5.0`) en lugar de `corepack enable`. Si por
+alguna razon sigues viendo este error, comprueba que el comando de build del
+servicio empieza exactamente con `npm install -g pnpm@11.5.0 && ...`.
+
+Alternativas equivalentes: fijar la variable de entorno
+`COREPACK_INTEGRITY_KEYS=0` (desactiva la verificacion de firma de Corepack) o
+fijar `NODE_VERSION` a una version cuyo Corepack tenga claves vigentes.
 
 ## 6. Paso 4: conectar el panel con la API y crear el administrador
 
